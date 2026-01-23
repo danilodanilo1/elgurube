@@ -19,11 +19,32 @@ const PORT = process.env.PORT || 5000;
 // Segurança
 app.use(helmet());
 
-// CORS
+// CORS - Configuração para múltiplas origens
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://elguru-five.vercel.app",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      // Permite requisições sem origin (mobile apps, Postman, etc)
+      if (!origin) return callback(null, true);
+
+      if (
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.some((allowed) => origin.startsWith(allowed))
+      ) {
+        callback(null, true);
+      } else {
+        console.log("❌ CORS blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   }),
 );
 
@@ -45,6 +66,7 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
+    console.log("Origin:", req.headers.origin);
     next();
   });
 }
@@ -52,6 +74,9 @@ if (process.env.NODE_ENV === "development") {
 // ========================================
 // ROTAS
 // ========================================
+
+// Handler para preflight requests (CORS)
+app.options("*", cors());
 
 app.use("/api", apiRoutes);
 
